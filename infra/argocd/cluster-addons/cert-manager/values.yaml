@@ -1,0 +1,66 @@
+# cert-manager Helm Values
+# Optimized for Kind cluster local development
+
+# Install CRDs with the chart
+crds:
+  enabled: true
+  keep: false
+
+# Replica count for local development
+replicaCount: 1
+
+# Resource limits for Kind cluster
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+# Webhook configuration
+webhook:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# CA Injector configuration
+cainjector:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# Startup API check (for fresh clusters)
+startupapicheck:
+  enabled: true
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# Enable Prometheus metrics
+prometheus:
+  enabled: true
+  servicemonitor:
+    enabled: false  # Enable if kube-prometheus-stack is installed
+
+# Logging
+global:
+  logLevel: 2
+
+# Pod disruption budget - disabled for local dev
+podDisruptionBudget:
+  enabled: false

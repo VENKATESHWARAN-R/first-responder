@@ -1,0 +1,27 @@
+# Envoy Gateway Helm Values
+# For Kind cluster local development
+
+# Deployment configuration
+deployment:
+  envoyGateway:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+# Enable Gateway API support
+config:
+  envoyGateway:
+    gateway:
+      controllerName: gateway.envoyproxy.io/gatewayclass-controller
+    provider:
+      type: Kubernetes
+    logging:
+      level:
+        default: info
+
+# Create default GatewayClass for convenience
+createDefaultResources: true

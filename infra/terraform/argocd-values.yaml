@@ -1,0 +1,91 @@
+# ArgoCD Helm Values for Kind Cluster
+# Optimized for local development environment
+
+global:
+  # Reduce resource usage for local environment
+  logging:
+    level: info
+
+# Server configuration
+server:
+  # Use insecure mode for local development (no TLS termination)
+  extraArgs:
+    - --insecure
+
+  service:
+    type: NodePort
+    nodePortHttp: 30080
+    nodePortHttps: 30443
+
+  # Reduced resources for local
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Controller configuration
+controller:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Repo server configuration
+repoServer:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Redis configuration
+redis:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# ApplicationSet controller
+applicationSet:
+  enabled: true
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# Notifications controller
+notifications:
+  enabled: false  # Disable for local development
+
+# Dex (SSO) - disabled for simplicity
+dex:
+  enabled: false
+
+# Configs
+configs:
+  cm:
+    # Allow insecure repositories for local development
+    repositories: |
+      - url: https://github.com/VENKATESHWARAN-R/first-responder.git
+        type: git
+
+  params:
+    # Server settings
+    server.insecure: true
+    # Increase status processors for faster sync
+    controller.status.processors: 10
+    controller.operation.processors: 5

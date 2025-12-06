@@ -1,0 +1,127 @@
+# kube-prometheus-stack Helm Values
+# Optimized for Kind cluster local development
+
+# Prometheus configuration
+prometheus:
+  prometheusSpec:
+    # Reduced retention for local dev
+    retention: 6h
+    retentionSize: 1GB
+    
+    # Reduced resources
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+    
+    # Storage - use emptyDir for disposable cluster
+    storageSpec: {}
+    
+    # Scrape interval
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+
+  # Service configuration
+  service:
+    type: NodePort
+    nodePort: 30090
+
+# Alertmanager configuration
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    storage: {}
+
+# Grafana configuration
+grafana:
+  enabled: true
+  
+  # Admin credentials
+  adminUser: admin
+  adminPassword: admin
+  
+  # Service type for access
+  service:
+    type: NodePort
+    nodePort: 30030
+  
+  # Reduced resources
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  
+  # Default dashboards
+  defaultDashboardsEnabled: true
+  defaultDashboardsTimezone: browser
+  
+  # Sidecar for dashboard/datasource discovery
+  sidecar:
+    dashboards:
+      enabled: true
+    datasources:
+      enabled: true
+
+# Node exporter
+nodeExporter:
+  enabled: true
+
+# Prometheus Node Exporter
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+# kube-state-metrics
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# Prometheus Operator
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# Disable components not needed for local dev
+kubeEtcd:
+  enabled: false  # etcd in Kind is not accessible
+
+kubeControllerManager:
+  enabled: false  # Not accessible in Kind
+
+kubeScheduler:
+  enabled: false  # Not accessible in Kind
+
+kubeProxy:
+  enabled: true
+
+# CRDs
+crds:
+  enabled: true
