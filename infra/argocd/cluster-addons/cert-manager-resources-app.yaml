@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager-resources
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/VENKATESHWARAN-R/first-responder.git
+    targetRevision: master
+    path: infra/argocd/cluster-addons/cert-manager-resources
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager  # These are cluster-scoped but need a namespace
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  # This depends on cert-manager being installed first
+  syncWaves:
+    - wave: 1

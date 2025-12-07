@@ -1,0 +1,93 @@
+---
+# Gateway for handling external traffic
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: argocd-gateway
+  namespace: argocd
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod  # or letsencrypt-staging for testing
+spec:
+  gatewayClassName: eg  # Envoy Gateway class
+  listeners:
+    # HTTP listener (redirects to HTTPS)
+    - name: http
+      protocol: HTTP
+      port: 80
+      hostname: "argocd.yourdomain.com"  # CHANGE THIS to your domain
+      allowedRoutes:
+        namespaces:
+          from: Same
+    
+    # HTTPS listener with TLS
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: "argocd.yourdomain.com"  # CHANGE THIS to your domain
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: argocd-tls-cert  # Certificate created below
+            kind: Secret
+      allowedRoutes:
+        namespaces:
+          from: Same
+
+---
+# Certificate for ArgoCD (managed by cert-manager)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: argocd-tls-cert
+  namespace: argocd
+spec:
+  secretName: argocd-tls-cert
+  issuerRef:
+    name: letsencrypt-prod  # or letsencrypt-staging, selfsigned, custom-ca-issuer
+    kind: ClusterIssuer
+  dnsNames:
+    - argocd.yourdomain.com  # CHANGE THIS to your domain
+  # For HTTP-01 challenge, cert-manager will automatically create HTTPRoutes
+
+---
+# HTTPRoute for ArgoCD Server (HTTPS)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: argocd-server-https
+  namespace: argocd
+spec:
+  parentRefs:
+    - name: argocd-gateway
+      sectionName: https  # Attach to HTTPS listener
+  hostnames:
+    - "argocd.yourdomain.com"  # CHANGE THIS to your domain
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: argocd-server
+          port: 80  # ArgoCD server service port (HTTP, not HTTPS)
+          kind: Service
+
+---
+# HTTPRoute for HTTP to HTTPS redirect
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: argocd-server-http-redirect
+  namespace: argocd
+spec:
+  parentRefs:
+    - name: argocd-gateway
+      sectionName: http  # Attach to HTTP listener
+  hostnames:
+    - "argocd.yourdomain.com"  # CHANGE THIS to your domain
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
