@@ -1,0 +1,19 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: load-tester-frontend
+  namespace: load-tester
+spec:
+  parentRefs:
+  - name: eg
+    namespace: envoy-gateway-system
+  hostnames:
+  - "load-tester.local"
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: frontend
+      port: 3000
