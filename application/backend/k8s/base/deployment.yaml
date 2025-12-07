@@ -6,7 +6,7 @@ metadata:
     app: backend
     component: load-tester
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: backend

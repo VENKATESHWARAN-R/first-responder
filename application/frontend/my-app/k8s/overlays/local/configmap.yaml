@@ -3,7 +3,6 @@ kind: ConfigMap
 metadata:
   name: frontend-config
 data:
-  # Override backend URL for local Kind cluster
-  # Frontend will call /api/proxy which is handled by Next.js API route
-  # The API route then forwards requests to the backend service
-  BACKEND_URL: "/api/proxy"
+  # Backend service URL for the proxy to forward requests to
+  # This must be an absolute URL that the server-side proxy can reach
+  BACKEND_URL: "http://local-backend:8000"

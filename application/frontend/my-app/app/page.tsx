@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 type StressType = "cpu" | "memory" | "io" | "combined" | "crash";
 
@@ -12,28 +12,6 @@ interface IntervalConfig {
 export default function Home() {
   const [response, setResponse] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [targetUrl, setTargetUrl] = useState("http://localhost:8000");
-  const [configLoaded, setConfigLoaded] = useState(false);
-  
-  // Fetch configuration from API route on mount
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const res = await fetch('/api/config');
-        const config = await res.json();
-        if (config.backendUrl) {
-          setTargetUrl(config.backendUrl);
-        }
-      } catch (error) {
-        console.error('Failed to load config:', error);
-        // Keep default value on error
-      } finally {
-        setConfigLoaded(true);
-      }
-    };
-    
-    fetchConfig();
-  }, []);
   
   // Interval controls
   const [intervalConfig, setIntervalConfig] = useState<IntervalConfig>({
@@ -49,9 +27,14 @@ export default function Home() {
     setResponse((prev) => `[${timestamp}] ${message}\n${prev || ""}`);
   };
 
+  // All backend calls go through the /api/proxy route
+  // The proxy forwards requests to the actual backend service
   const fetchEndpoint = async (endpoint: string) => {
     try {
-      const res = await fetch(`${targetUrl}${endpoint}`);
+      // Build proxy URL: /api/proxy/health -> proxies to backend /health
+      const proxyPath = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+      const proxyUrl = proxyPath ? `/api/proxy/${proxyPath}` : '/api/proxy';
+      const res = await fetch(proxyUrl);
       const data = await res.json();
       return JSON.stringify(data);
     } catch (error) {
@@ -69,7 +52,7 @@ export default function Home() {
   const crashBackend = async () => {
     setLoading(true);
     try {
-      await fetch(`${targetUrl}/crash`);
+      await fetch('/api/proxy/crash');
       appendLog("CRASH: Request sent (server should be down)");
     } catch (error) {
       appendLog(`CRASH: Triggered! (Connection lost: ${String(error)})`);
@@ -129,7 +112,7 @@ export default function Home() {
       stopIntervalTask();
       appendLog(`Completed ${type} stress test cycle`);
     }, intervalConfig.totalDurationMs);
-  }, [runningTask, intervalConfig, targetUrl]);
+  }, [runningTask, intervalConfig]);
 
   const stopIntervalTask = () => {
     if (intervalRef.current) {
@@ -153,14 +136,12 @@ export default function Home() {
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-6 text-center">🔥 Load Testing Dashboard</h1>
         
-        {/* Backend URL Config */}
+        {/* Backend Status - Using API Proxy */}
         <div className="mb-6 p-4 bg-gray-800 rounded-lg">
-          <label className="block text-sm font-medium mb-2">Backend URL</label>
-          <input 
-            className="w-full p-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-blue-500 focus:outline-none"
-            value={targetUrl} 
-            onChange={(e) => setTargetUrl(e.target.value)}
-          />
+          <label className="block text-sm font-medium mb-2">Backend Status</label>
+          <div className="p-2 rounded bg-gray-700 text-green-400 border border-gray-600">
+            ✓ Using API Proxy: /api/proxy → Backend Service
+          </div>
         </div>
 
         {/* Interval Configuration */}
