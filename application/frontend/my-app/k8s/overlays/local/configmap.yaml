@@ -4,5 +4,6 @@ metadata:
   name: frontend-config
 data:
   # Override backend URL for local Kind cluster
-  # Change this to point to different environments without rebuilding images
-  BACKEND_URL: "http://local-backend:8000"
+  # Frontend will call /api/proxy which is handled by Next.js API route
+  # The API route then forwards requests to the backend service
+  BACKEND_URL: "/api/proxy"
