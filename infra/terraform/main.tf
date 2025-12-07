@@ -96,11 +96,11 @@ resource "time_sleep" "wait_for_argocd" {
 # App of Apps - Root Application
 # =============================================================================
 
-resource "kubernetes_manifest" "root_application" {
+resource "kubectl_manifest" "root_application" {
   count      = var.enable_cluster_addons ? 1 : 0
   depends_on = [time_sleep.wait_for_argocd]
 
-  manifest = {
+  yaml_body = yamlencode({
     apiVersion = "argoproj.io/v1alpha1"
     kind       = "Application"
     metadata = {
@@ -127,8 +127,8 @@ resource "kubernetes_manifest" "root_application" {
           selfHeal = true
         }
         syncOptions = [
-          "CreateNamespace=true"
-          , "ServerSideApply=true"
+          "CreateNamespace=true",
+          "ServerSideApply=true"
         ]
         retry = {
           limit = 5
@@ -140,5 +140,5 @@ resource "kubernetes_manifest" "root_application" {
         }
       }
     }
-  }
+  })
 }
