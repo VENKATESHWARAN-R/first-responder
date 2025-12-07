@@ -15,10 +15,18 @@ A disposable, replicatable Kubernetes development environment using Kind, bootst
                                    │
                                    ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    App of Apps (GitOps)                          │
+│              App of Apps (Cluster Add-ons)                       │
 │  ┌───────────────┐ ┌───────────────┐ ┌───────────────────────┐  │
-│  │  cert-manager │ │   Prometheus  │ │  Gateway API + Envoy  │  │
-│  │               │ │    Grafana    │ │       Gateway         │  │
+│  │  cert-manager │ │   Prometheus  │ │    Envoy Gateway      │  │
+│  │               │ │    Grafana    │ │  (+ Gateway API CRDs) │  │
+│  └───────────────┘ └───────────────┘ └───────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────┐
+│         Your Applications (Separate from Cluster Addons)         │
+│  ┌───────────────┐ ┌───────────────┐ ┌───────────────────────┐  │
+│  │   Your App 1  │ │   Your App 2  │ │     Your App 3        │  │
 │  └───────────────┘ └───────────────┘ └───────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -62,10 +70,8 @@ make argocd-password
 
 # Port-forward ArgoCD UI
 make port-forward-argocd
-# Then open: https://localhost:8080
+# Then open: http://localhost:8080 (NOT https)
 ```
-
-**Or via NodePort:** http://localhost:30080
 
 ### Grafana
 
@@ -75,8 +81,6 @@ make port-forward-grafana
 # Login: admin / admin
 ```
 
-**Or via NodePort:** http://localhost:30030
-
 ### Prometheus
 
 ```bash
@@ -84,38 +88,41 @@ make port-forward-prometheus
 # Then open: http://localhost:9090
 ```
 
-**Or via NodePort:** http://localhost:30090
-
 ## 🗂️ Directory Structure
 
 ```
 infra/
 ├── terraform/                    # Terraform configuration
 │   ├── main.tf                   # Main orchestration
-│   ├── providers.tf              # Provider configuration
+│   ├── providers.tf              # Provider configuration (kubectl provider!)
 │   ├── variables.tf              # Input variables
 │   ├── outputs.tf                # Outputs
 │   ├── versions.tf               # Version constraints
 │   └── argocd-values.yaml        # ArgoCD Helm values
 ├── argocd/
-│   └── cluster-addons/           # GitOps managed addons
-│       ├── cert-manager/
-│       │   ├── application.yaml  # ArgoCD Application
-│       │   └── values.yaml       # Helm values
-│       ├── kube-prometheus-stack/
-│       │   ├── application.yaml
-│       │   └── values.yaml
-│       ├── gateway-api/
-│       │   └── application.yaml  # Gateway API CRDs
-│       └── envoy-gateway/
-│           ├── application.yaml
-│           └── values.yaml
+│   ├── cluster-addons/           # GitOps managed cluster infrastructure
+│   │   ├── *-app.yaml            # ArgoCD Application manifests (root level)
+│   │   ├── cert-manager/
+│   │   │   └── values.yaml       # Helm values for cert-manager
+│   │   ├── kube-prometheus-stack/
+│   │   │   └── values.yaml       # Helm values for monitoring stack
+│   │   └── envoy-gateway/
+│   │       └── values.yaml       # Helm values for Envoy Gateway
+│   └── applications/             # Your application deployments (create this)
+│       └── your-app/
+│           ├── application.yaml  # ArgoCD Application for your app
+│           └── values.yaml       # (Optional) Helm values
 ├── scripts/
 │   ├── setup.sh                  # Full setup script
 │   └── destroy.sh                # Cleanup script
 ├── Makefile                      # Convenience commands
 └── README.md                     # This file
 ```
+
+### Key Points:
+- **`cluster-addons/*-app.yaml`** - Application manifests at root level for ArgoCD App of Apps pattern
+- **`cluster-addons/*/values.yaml`** - Only values files in subdirectories (no duplicate application.yaml files)
+- **Application manifests must be at root level** - ArgoCD scans only the directory root, not subdirectories
 
 ## ⚙️ Configuration
 
@@ -128,7 +135,7 @@ infra/
 | `worker_nodes` | `2` | Number of worker nodes |
 | `argocd_chart_version` | `7.7.5` | ArgoCD Helm chart version |
 | `git_repo_url` | `https://github.com/VENKATESHWARAN-R/first-responder.git` | Git repo for ArgoCD |
-| `git_target_revision` | `main` | Git branch/tag to sync |
+| `git_target_revision` | `master` | Git branch/tag to sync |
 | `git_path` | `infra/argocd/cluster-addons` | Path to addons in repo |
 | `enable_cluster_addons` | `true` | Deploy addons via App of Apps |
 
@@ -148,18 +155,17 @@ Or use command line:
 terraform apply -var="cluster_name=my-cluster"
 ```
 
-## 📦 Cluster Addons
+## 📦 Cluster Add-ons
 
-The following addons are managed via ArgoCD's App of Apps pattern:
+The following add-ons are managed via ArgoCD's App of Apps pattern:
 
 | Addon | Namespace | Description |
 |-------|-----------|-------------|
 | **cert-manager** | `cert-manager` | X.509 certificate management |
 | **kube-prometheus-stack** | `monitoring` | Prometheus + Grafana + Alertmanager |
-| **Gateway API CRDs** | `default` | Kubernetes Gateway API |
-| **Envoy Gateway** | `envoy-gateway-system` | Gateway API implementation |
+| **envoy-gateway** | `envoy-gateway-system` | Envoy Gateway + Gateway API CRDs |
 
-### Customizing Addons
+### Customizing Add-ons
 
 Edit the `values.yaml` files in `argocd/cluster-addons/<addon>/`:
 
@@ -203,65 +209,205 @@ make clean
 make clean-all
 ```
 
-## ➕ Adding New Applications
+## ➕ Adding New Cluster Add-ons
 
-### 1. Create Application Directory
+### Example: Kubernetes Dashboard
+
+1. **Create values directory** (if the Helm chart needs custom values):
+   ```bash
+   mkdir -p argocd/cluster-addons/kubernetes-dashboard
+   ```
+
+2. **Create values file** (optional):
+   ```bash
+   cat > argocd/cluster-addons/kubernetes-dashboard/values.yaml <<EOF
+   # Kubernetes Dashboard Helm values
+   service:
+     type: ClusterIP
+   protocolHttp: true
+   EOF
+   ```
+
+3. **Create Application manifest at root level**:
+   ```bash
+   cat > argocd/cluster-addons/kubernetes-dashboard-app.yaml <<EOF
+   apiVersion: argoproj.io/v1alpha1
+   kind: Application
+   metadata:
+     name: kubernetes-dashboard
+     namespace: argocd
+     finalizers:
+       - resources-finalizer.argocd.argoproj.io
+   spec:
+     project: default
+     sources:
+       - repoURL: https://kubernetes.github.io/dashboard/
+         targetRevision: 7.10.0
+         chart: kubernetes-dashboard
+         helm:
+           releaseName: kubernetes-dashboard
+           valueFiles:
+             - \$values/infra/argocd/cluster-addons/kubernetes-dashboard/values.yaml
+       - repoURL: https://github.com/VENKATESHWARAN-R/first-responder.git
+         targetRevision: master
+         ref: values
+     destination:
+       server: https://kubernetes.default.svc
+       namespace: kubernetes-dashboard
+     syncPolicy:
+       automated:
+         prune: true
+         selfHeal: true
+       syncOptions:
+         - CreateNamespace=true
+         - ServerSideApply=true
+       retry:
+         limit: 5
+         backoff:
+           duration: 5s
+           factor: 2
+           maxDuration: 3m
+   EOF
+   ```
+
+4. **Commit and push**:
+   ```bash
+   git add argocd/cluster-addons/kubernetes-dashboard*
+   git commit -m "Add Kubernetes Dashboard to cluster addons"
+   git push
+   ```
+
+5. **Wait for ArgoCD to sync** (or force sync):
+   ```bash
+   make sync
+   make apps  # Check status
+   ```
+
+### Important Notes:
+- Application manifests MUST be at root level of `cluster-addons/` directory
+- Use `*-app.yaml` naming convention for clarity
+- Values files go in subdirectories: `cluster-addons/<addon-name>/values.yaml`
+- The `$values` reference in `valueFiles` refers to the second source (your Git repo)
+
+## 🚀 Adding Your Own Applications
+
+Your applications should be managed **separately from cluster add-ons** to:
+- Keep infrastructure and application deployments independent
+- Allow easy updates without affecting cluster core components
+- Maintain clear separation of concerns
+
+### Option 1: Single Application (Simple)
+
+Create an ArgoCD Application directly in the cluster:
 
 ```bash
-mkdir -p argocd/cluster-addons/my-app
-```
-
-### 2. Create Application Manifest
-
-```yaml
-# argocd/cluster-addons/my-app/application.yaml
+cat <<EOF | kubectl apply -f -
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: my-app
+  name: my-web-app
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-  sources:
-    - repoURL: https://charts.example.com
-      targetRevision: 1.0.0
-      chart: my-app
-      helm:
-        releaseName: my-app
-        valueFiles:
-          - $values/infra/argocd/cluster-addons/my-app/values.yaml
-    - repoURL: https://github.com/VENKATESHWARAN-R/first-responder.git
-      targetRevision: main
-      ref: values
+  source:
+    repoURL: https://github.com/VENKATESHWARAN-R/first-responder.git
+    targetRevision: master
+    path: apps/my-web-app  # Your app k8s manifests or Helm chart
   destination:
     server: https://kubernetes.default.svc
-    namespace: my-app
+    namespace: my-web-app
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+EOF
 ```
 
-### 3. Create Values File
+### Option 2: App of Apps for Your Applications (Recommended)
 
-```yaml
-# argocd/cluster-addons/my-app/values.yaml
-# Your custom Helm values here
-```
+Create a separate App of Apps structure for your applications:
 
-### 4. Commit and Push
+1. **Create directory structure**:
+   ```bash
+   mkdir -p argocd/applications
+   ```
 
-```bash
-git add -A
-git commit -m "Add my-app to cluster addons"
-git push
-```
+2. **Create your application manifest**:
+   ```bash
+   cat > argocd/applications/my-web-app.yaml <<EOF
+   apiVersion: argoproj.io/v1alpha1
+   kind: Application
+   metadata:
+     name: my-web-app
+     namespace: argocd
+     finalizers:
+       - resources-finalizer.argocd.argoproj.io
+   spec:
+     project: default
+     source:
+       repoURL: https://github.com/VENKATESHWARAN-R/first-responder.git
+       targetRevision: master
+       path: apps/my-web-app
+     destination:
+       server: https://kubernetes.default.svc
+       namespace: my-web-app
+     syncPolicy:
+       automated:
+         prune: true
+         selfHeal: true
+       syncOptions:
+         - CreateNamespace=true
+   EOF
+   ```
 
-ArgoCD will automatically detect and sync the new application.
+3. **Create root application** (one time):
+   ```bash
+   cat <<EOF | kubectl apply -f -
+   apiVersion: argoproj.io/v1alpha1
+   kind: Application
+   metadata:
+     name: applications
+     namespace: argocd
+     finalizers:
+       - resources-finalizer.argocd.argoproj.io
+   spec:
+     project: default
+     source:
+       repoURL: https://github.com/VENKATESHWARAN-R/first-responder.git
+       targetRevision: master
+       path: infra/argocd/applications
+     destination:
+       server: https://kubernetes.default.svc
+       namespace: argocd
+     syncPolicy:
+       automated:
+         prune: true
+         selfHeal: true
+   EOF
+   ```
+
+4. **Add your application code/manifests**:
+   ```bash
+   mkdir -p apps/my-web-app
+   # Add your Kubernetes manifests or Helm chart here
+   ```
+
+5. **Commit and push**:
+   ```bash
+   git add argocd/applications/ apps/
+   git commit -m "Add my web application"
+   git push
+   ```
+
+### Benefits of Separate App of Apps:
+- ✅ Cluster infrastructure (`cluster-addons`) separate from applications (`applications`)
+- ✅ Easy to update apps without touching cluster components
+- ✅ Can have different sync policies, retention policies, etc.
+- ✅ Clear organizational structure
 
 ## 🐛 Troubleshooting
 
@@ -289,6 +435,12 @@ kubectl describe application <app-name> -n argocd
 kubectl patch application <app-name> -n argocd --type merge -p '{"metadata": {"annotations": {"argocd.argoproj.io/refresh": "normal"}}}'
 ```
 
+### ArgoCD UI not accessible
+
+**Important:** ArgoCD is configured with `server.insecure: true` for local development.
+- Use **HTTP** not HTTPS: `http://localhost:8080`
+- NOT: `https://localhost:8080`
+
 ### Reset everything
 
 ```bash
@@ -296,6 +448,28 @@ make destroy
 make clean-all
 make setup
 ```
+
+## 📝 Best Practices
+
+1. **Cluster Add-ons vs Applications**
+   - Use `cluster-addons/` for infrastructure (cert-manager, monitoring, gateways)
+   - Use `applications/` for your workloads
+   - Keep them separate for easier management
+
+2. **GitOps Workflow**
+   - All changes through Git commits
+   - Let ArgoCD automatically sync
+   - Use `make apps` to monitor sync status
+
+3. **Values Files**
+   - Store all customizations in `values.yaml` files
+   - Never modify charts directly
+   - Use image pull secrets and registry configs in values
+
+4. **Application Naming**
+   - Cluster addons: `<name>-app.yaml` (e.g., `cert-manager-app.yaml`)
+   - Clear, descriptive names
+   - Consistent naming conventions
 
 ## 📚 Resources
 
@@ -305,3 +479,4 @@ make setup
 - [Envoy Gateway](https://gateway.envoyproxy.io/)
 - [cert-manager](https://cert-manager.io/)
 - [kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack)
+- [Kubernetes Dashboard](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/)

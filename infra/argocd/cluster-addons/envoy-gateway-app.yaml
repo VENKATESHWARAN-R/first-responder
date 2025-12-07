@@ -5,9 +5,6 @@ metadata:
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
-  annotations:
-    # Deploy after Gateway API CRDs
-    argocd.argoproj.io/sync-wave: "0"
 spec:
   project: default
   sources:
