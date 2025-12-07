@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  labels:
+    app: frontend
+    component: load-tester
+data:
+  BACKEND_URL: "http://backend:8000"

@@ -1,4 +1,4 @@
-.PHONY: setup destroy init plan apply argocd-password port-forward port-forward-grafana port-forward-prometheus clean status
+.PHONY: setup destroy init plan apply argocd-password port-forward port-forward-grafana port-forward-prometheus clean status build-images
 
 # Default target
 .DEFAULT_GOAL := help
@@ -74,6 +74,15 @@ port-forward-prometheus: ## Port-forward Prometheus (http://localhost:9090)
 	@echo "Prometheus available at http://localhost:9090"
 	@kubectl port-forward svc/kube-prometheus-stack-prometheus -n monitoring 9090:9090
 
+port-forward-load-tester-frontend: ## Port-forward Load Tester Frontend (http://localhost:3001)
+	@echo "Load Tester Frontend available at http://localhost:3001"
+	@kubectl port-forward svc/local-frontend -n load-tester 3001:3000
+
+port-forward-load-tester-backend: ## Port-forward Load Tester Backend (http://localhost:8000)
+	@echo "Load Tester Backend available at http://localhost:8000"
+	@echo "API Docs: http://localhost:8000/docs"
+	@kubectl port-forward svc/local-backend -n load-tester 8000:8000
+
 ##@ Status
 
 status: ## Show cluster and ArgoCD status
@@ -116,3 +125,7 @@ sync: ## Force sync all ArgoCD applications
 
 logs-argocd: ## Show ArgoCD server logs
 	@kubectl logs -n argocd -l app.kubernetes.io/name=argocd-server -f --tail=100
+
+build-images: ## Build and load application Docker images into Kind cluster
+	@chmod +x $(SCRIPTS_DIR)/build-images.sh
+	@$(SCRIPTS_DIR)/build-images.sh

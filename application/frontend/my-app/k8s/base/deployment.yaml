@@ -24,8 +24,11 @@ spec:
         - containerPort: 3000
           name: http
         env:
-        - name: NEXT_PUBLIC_BACKEND_URL
-          value: "http://backend:8000"
+        - name: BACKEND_URL
+          valueFrom:
+            configMapKeyRef:
+              name: frontend-config
+              key: BACKEND_URL
         resources:
           requests:
             memory: "256Mi"

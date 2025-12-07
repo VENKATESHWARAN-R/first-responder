@@ -4,4 +4,8 @@ kind: Kustomization
 resources:
   - ../../base
 
+# Patches to override base configuration for local environment
+patches:
+  - path: configmap.yaml
+
 namePrefix: local-

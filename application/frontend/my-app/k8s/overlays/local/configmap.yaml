@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+data:
+  # Override backend URL for local Kind cluster
+  # Change this to point to different environments without rebuilding images
+  BACKEND_URL: "http://local-backend:8000"

@@ -7,6 +7,7 @@ resources:
   - deployment.yaml
   - service.yaml
   - httproute.yaml
+  - configmap.yaml
 
 commonLabels:
   app.kubernetes.io/name: frontend

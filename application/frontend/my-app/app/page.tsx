@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type StressType = "cpu" | "memory" | "io" | "combined" | "crash";
 
@@ -13,6 +13,27 @@ export default function Home() {
   const [response, setResponse] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [targetUrl, setTargetUrl] = useState("http://localhost:8000");
+  const [configLoaded, setConfigLoaded] = useState(false);
+  
+  // Fetch configuration from API route on mount
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch('/api/config');
+        const config = await res.json();
+        if (config.backendUrl) {
+          setTargetUrl(config.backendUrl);
+        }
+      } catch (error) {
+        console.error('Failed to load config:', error);
+        // Keep default value on error
+      } finally {
+        setConfigLoaded(true);
+      }
+    };
+    
+    fetchConfig();
+  }, []);
   
   // Interval controls
   const [intervalConfig, setIntervalConfig] = useState<IntervalConfig>({
