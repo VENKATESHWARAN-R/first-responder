@@ -142,3 +142,55 @@ resource "kubectl_manifest" "root_application" {
     }
   })
 }
+
+# =============================================================================
+# App of Apps - User Applications
+# =============================================================================
+
+resource "kubectl_manifest" "applications" {
+  count      = var.enable_applications ? 1 : 0
+  depends_on = [time_sleep.wait_for_argocd]
+
+  yaml_body = yamlencode({
+    apiVersion = "argoproj.io/v1alpha1"
+    kind       = "Application"
+    metadata = {
+      name      = "applications"
+      namespace = var.argocd_namespace
+      finalizers = [
+        "resources-finalizer.argocd.argoproj.io"
+      ]
+    }
+    spec = {
+      project = "default"
+      source = {
+        repoURL        = var.git_repo_url
+        targetRevision = var.git_target_revision
+        path           = var.git_applications_path
+      }
+      destination = {
+        server    = "https://kubernetes.default.svc"
+        namespace = var.argocd_namespace
+      }
+      syncPolicy = {
+        automated = {
+          prune    = true
+          selfHeal = true
+        }
+        syncOptions = [
+          "CreateNamespace=true",
+          "ServerSideApply=true"
+        ]
+        retry = {
+          limit = 5
+          backoff = {
+            duration    = "5s"
+            factor      = 2
+            maxDuration = "3m"
+          }
+        }
+      }
+    }
+  })
+}
+

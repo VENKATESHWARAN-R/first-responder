@@ -51,3 +51,16 @@ variable "enable_cluster_addons" {
   type        = bool
   default     = true
 }
+
+variable "enable_applications" {
+  description = "Whether to deploy user applications via App of Apps"
+  type        = bool
+  default     = true
+}
+
+variable "git_applications_path" {
+  description = "Path within the Git repository for user applications"
+  type        = string
+  default     = "infra/argocd/applications"
+}
+
