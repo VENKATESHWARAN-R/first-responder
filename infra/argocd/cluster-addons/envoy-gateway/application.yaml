@@ -19,7 +19,7 @@ spec:
         valueFiles:
           - $values/infra/argocd/cluster-addons/envoy-gateway/values.yaml
     - repoURL: https://github.com/VENKATESHWARAN-R/first-responder.git
-      targetRevision: main
+      targetRevision: master
       ref: values
   destination:
     server: https://kubernetes.default.svc

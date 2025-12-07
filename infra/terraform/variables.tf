@@ -31,7 +31,7 @@ variable "git_repo_url" {
 variable "git_target_revision" {
   description = "Git branch, tag, or commit to sync"
   type        = string
-  default     = "main"
+  default     = "master"
 }
 
 variable "git_path" {
