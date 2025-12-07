@@ -6,7 +6,7 @@ metadata:
   name: argocd-gateway
   namespace: argocd
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod  # or letsencrypt-staging for testing
+    cert-manager.io/cluster-issuer: selfsigned  # Self-signed cert for local Kind cluster
 spec:
   gatewayClassName: eg  # Envoy Gateway class
   listeners:
@@ -14,7 +14,7 @@ spec:
     - name: http
       protocol: HTTP
       port: 80
-      hostname: "argocd.yourdomain.com"  # CHANGE THIS to your domain
+      hostname: "argocd.local"  # Local domain for Kind cluster
       allowedRoutes:
         namespaces:
           from: Same
@@ -23,7 +23,7 @@ spec:
     - name: https
       protocol: HTTPS
       port: 443
-      hostname: "argocd.yourdomain.com"  # CHANGE THIS to your domain
+      hostname: "argocd.local"  # Local domain for Kind cluster
       tls:
         mode: Terminate
         certificateRefs:
@@ -43,11 +43,10 @@ metadata:
 spec:
   secretName: argocd-tls-cert
   issuerRef:
-    name: letsencrypt-prod  # or letsencrypt-staging, selfsigned, custom-ca-issuer
+    name: selfsigned  # Self-signed issuer for local development
     kind: ClusterIssuer
   dnsNames:
-    - argocd.yourdomain.com  # CHANGE THIS to your domain
-  # For HTTP-01 challenge, cert-manager will automatically create HTTPRoutes
+    - argocd.local  # Local domain for Kind cluster
 
 ---
 # HTTPRoute for ArgoCD Server (HTTPS)
@@ -61,7 +60,7 @@ spec:
     - name: argocd-gateway
       sectionName: https  # Attach to HTTPS listener
   hostnames:
-    - "argocd.yourdomain.com"  # CHANGE THIS to your domain
+    - "argocd.local"  # Local domain for Kind cluster
   rules:
     - matches:
         - path:
@@ -84,7 +83,7 @@ spec:
     - name: argocd-gateway
       sectionName: http  # Attach to HTTP listener
   hostnames:
-    - "argocd.yourdomain.com"  # CHANGE THIS to your domain
+    - "argocd.local"  # Local domain for Kind cluster
   rules:
     - filters:
         - type: RequestRedirect

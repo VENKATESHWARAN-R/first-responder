@@ -3,6 +3,8 @@ kind: Application
 metadata:
   name: cert-manager-resources
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"  # Sync after wave 0 (cert-manager)
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -26,6 +28,3 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 3m
-  # This depends on cert-manager being installed first
-  syncWaves:
-    - wave: 1
