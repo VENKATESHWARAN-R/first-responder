@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: frontend-config
-data:
-  # Backend service URL for the proxy to forward requests to
-  # This must be an absolute URL that the server-side proxy can reach
-  BACKEND_URL: "http://local-backend:8000"
