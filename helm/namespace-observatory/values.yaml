@@ -1,0 +1,67 @@
+# Default values for namespace-observatory
+
+replicaCount: 1
+
+backend:
+  image:
+    repository: namespace-observatory/backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 8000
+  env:
+    NSO_K8S_IN_CLUSTER: "true"
+    NSO_SECRET_KEY: "change-me-in-production"
+    NSO_ADMIN_EMAIL: "admin@namespace-observatory.local"
+    NSO_ADMIN_PASSWORD: "admin"
+    NSO_CACHE_TTL_SECONDS: "15"
+    NSO_CORS_ORIGINS: '["http://localhost:3000"]'
+
+frontend:
+  image:
+    repository: namespace-observatory/frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  port: 3000
+  env:
+    NEXT_PUBLIC_API_URL: "http://namespace-observatory-backend:8000"
+
+serviceAccount:
+  create: true
+  name: namespace-observatory
+
+rbac:
+  # Namespaces to monitor. Empty = cluster-wide read access.
+  # If set, only these namespaces get Role/RoleBinding instead of ClusterRole.
+  namespaces: []
+
+service:
+  type: ClusterIP
+  frontendPort: 80
+  backendPort: 8000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: nso.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  backend:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  frontend:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi

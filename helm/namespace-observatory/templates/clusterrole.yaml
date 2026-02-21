@@ -1,0 +1,28 @@
+# Least-privilege ClusterRole for read-only Kubernetes monitoring.
+# Only get/list/watch verbs — no create/update/delete/patch/exec.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-readonly
+  labels:
+    {{- include "nso.labels" . | nindent 4 }}
+rules:
+  # Namespaces — needed to list available namespaces
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+
+  # Core resources — pods, events, configmaps, secrets (names only), services
+  - apiGroups: [""]
+    resources: ["pods", "events", "configmaps", "secrets", "services"]
+    verbs: ["get", "list", "watch"]
+
+  # Apps — deployments, statefulsets, daemonsets, replicasets
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["get", "list", "watch"]
+
+  # Batch — jobs, cronjobs
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
