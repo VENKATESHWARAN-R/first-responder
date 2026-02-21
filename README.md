@@ -1,78 +1,132 @@
-# First Responder
+# Namespace Observatory
 
-A comprehensive suite of AI-powered tools for monitoring, observability, and troubleshooting Kubernetes environments.
+Phase 1 (MVP) — “Namespace Observatory” (Read-only Kubernetes Monitoring SaaS)
 
-## Project Overview
+A production-quality MVP web application that monitors Kubernetes namespaces by reading from the Kubernetes API. It provides a read-only view of workloads, pods, events, and health status, secured by RBAC and app-managed authentication.
 
-This project aims to build intelligent agents that help with:
+## Features
 
-- **Monitoring**: Real-time system health and performance tracking
-- **Observability**: Deep insights into distributed system behavior
-- **Troubleshooting**: Automated issue detection and resolution
+- **Read-only Observability**: Monitor Namespaces, Workloads (Deployments, StatefulSets, DaemonSets), Pods, and Events.
+- **Diagnostics**: Rule-based "Likely cause" analysis for failed pods (e.g., ImagePullBackOff, OOMKilled).
+- **Security**: App-managed login with JWT in HttpOnly cookies. RBAC-based namespace visibility (Admin vs Viewer).
+- **Themes**: Switch between "Minimal" and "Neo-brutal" themes.
+- **Zero-Touch**: No cluster management actions (create/update/delete) allowed.
 
-To develop and test these tools in a realistic environment, we use a local Kubernetes cluster with a production-like microservices application.
+## Tech Stack
 
-## Prerequisites
+- **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS.
+- **Backend**: Python FastAPI, Kubernetes Python Client.
+- **Deployment**: Kubernetes Manifests (Deployment, Service, RBAC).
 
-- [Docker](https://docs.docker.com/get-docker/)
-- [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/#installation) (Kubernetes in Docker)
-- [kubectl](https://kubernetes.io/docs/tasks/tools/)
-- [Helm](https://helm.sh/docs/intro/install/)
+## Quickstart
 
-## Setup
+### Prerequisites
 
-### 1. Create the Kind Cluster
+- Docker
+- Kubernetes cluster (local `kind` or remote)
+- `kubectl` configured
 
-Create a local Kubernetes cluster using the provided configuration:
+### 1. Build Docker Images
 
-```bash
-kind create cluster --config kind-config.yaml --name otel-testing
-```
-
-This creates a cluster with 1 control plane node and 2 worker nodes.
-
-### 2. Deploy the OpenTelemetry Demo Application
-
-We use the [OpenTelemetry Demo Application](https://opentelemetry.io/docs/demo/kubernetes-deployment/) as a realistic microservices environment.
+From the repository root:
 
 ```bash
-# Add the OpenTelemetry Helm repository
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm repo update
+# Build Backend
+docker build -f backend/Dockerfile -t namespace-observatory-backend:latest .
 
-# Install the demo application
-helm install my-otel-demo open-telemetry/opentelemetry-demo
+# Build Frontend
+docker build -f frontend/Dockerfile -t namespace-observatory-frontend:latest .
 ```
 
-### 3. Verify the Deployment
-
-Check that all pods are running:
+### 2. Load Images into Kind (if using Kind)
 
 ```bash
-kubectl get pods
+kind load docker-image namespace-observatory-backend:latest --name otel-testing
+kind load docker-image namespace-observatory-frontend:latest --name otel-testing
 ```
 
-Wait for all pods to reach the `Running` status.
+*(Replace `otel-testing` with your cluster name)*
+
+### 3. Deploy to Kubernetes
+
+```bash
+# Apply RBAC (ServiceAccount, ClusterRole, Binding)
+kubectl apply -f deploy/k8s/rbac.yaml
+
+# Apply Deployments and Services
+kubectl apply -f deploy/k8s/deployment.yaml
+kubectl apply -f deploy/k8s/service.yaml
+```
 
 ### 4. Access the Application
 
-The demo application includes several frontend and backend services. To access them locally:
+The frontend service is exposed as a NodePort on port `30000`.
+
+If running locally with Kind/Minikube, you might need to port-forward:
 
 ```bash
-# Port-forward to the frontend service
-kubectl port-forward svc/my-otel-demo-frontendproxy 8080:8080
+kubectl port-forward svc/frontend-service 3000:3000
 ```
 
-Then open [http://localhost:8080](http://localhost:8080) in your browser.
+Open [http://localhost:3000](http://localhost:3000).
 
-## Cleanup
+**Default Admin Credentials:**
+- Email: `admin@example.com`
+- Password: `admin123`
 
-When you're done, delete the cluster:
+## Architecture Overview
+
+1.  **Frontend (Next.js)**:
+    -   Serves the UI and proxies API requests to the backend via Next.js Rewrites.
+    -   Handles theme switching and responsive layout.
+2.  **Backend (FastAPI)**:
+    -   Exposes REST API endpoints.
+    -   Authenticates users and issues JWTs.
+    -   Interacts with Kubernetes API using the in-cluster ServiceAccount token.
+    -   Implements caching and diagnostics logic.
+
+## RBAC Model & Security
+
+The application runs with a dedicated ServiceAccount `namespace-observatory-sa`. This ServiceAccount is bound to a `ClusterRole` named `namespace-observatory-viewer` which grants **read-only** permissions (`get`, `list`, `watch`) to specific resources:
+
+-   Core: `namespaces`, `pods`, `services`, `events`, `configmaps`, `secrets`
+-   Apps: `deployments`, `statefulsets`, `daemonsets`, `replicasets`
+-   Batch: `jobs`, `cronjobs`
+
+**Least Privilege:** The application cannot modify any resources. It cannot read the *content* of Secrets (only metadata), although the current RBAC allows `list` secrets which includes data in the API response. In a stricter environment, we would use a custom API aggregation or filter at the proxy level, but for this MVP, the backend code filters data and does not expose secret values to the frontend.
+
+## Local Development
+
+### Backend
 
 ```bash
-kind delete cluster --name otel-testing
+cd backend
+pip install -r requirements.txt
+python -m backend.app.main:app --reload
+# Runs on http://localhost:8000
 ```
 
-## Status
+### Frontend
 
-🚧 **Early Development** - The AI-powered monitoring and troubleshooting tools are currently under development.
+```bash
+cd frontend
+npm install
+npm run dev
+# Runs on http://localhost:3000
+```
+
+## How to add a new dashboard card
+
+1.  Create a new UI component in `frontend/src/components/ui/` if needed.
+2.  Navigate to `frontend/src/app/namespaces/[ns]/page.tsx` (for Namespace Detail) or `frontend/src/app/page.tsx` (for Overview).
+3.  Fetch the required data using `apiFetch` in the `useEffect` hook.
+4.  Add a new `<Card>` component to the grid layout.
+
+Example:
+
+```tsx
+<Card>
+  <CardHeader><CardTitle>My New Metric</CardTitle></CardHeader>
+  <CardContent>{metricValue}</CardContent>
+</Card>
+```

@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Default: Minimal Theme */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+
+    --radius: 0.5rem;
+    --shadow-neo: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --border-neo: 1px;
+  }
+
+  [data-theme='neo-brutal'] {
+    /* Neo-brutal Theme */
+    --background: 60 100% 97%; /* Light yellow-ish */
+    --foreground: 0 0% 0%; /* Stark black */
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+
+    --primary: 262 80% 50%; /* Deep Purple */
+    --primary-foreground: 0 0% 100%;
+
+    --destructive: 0 100% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 0%; /* Black borders */
+    --input: 0 0% 0%;
+    --ring: 0 0% 0%;
+
+    --radius: 0px; /* Sharp corners */
+    --shadow-neo: 4px 4px 0px 0px rgba(0,0,0,1); /* Hard shadow */
+    --border-neo: 2px; /* Thick borders */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
