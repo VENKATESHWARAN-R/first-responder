@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-readonly
+  labels:
+    {{- include "nso.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-readonly
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "nso.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
