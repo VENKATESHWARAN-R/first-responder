@@ -94,7 +94,7 @@ def workload_detail(kind: str, namespace: str, name: str, user: User = Depends(g
     workloads = k8s_service.list_workloads(namespace)
     for item in workloads:
         if item['kind'].lower() == kind.lower() and item['name'] == name:
-            pods = [p for p in k8s_service.list_pods(namespace) if name in p['owners']]
+            pods = k8s_service.list_pods_by_selector(namespace, item.get('selector') or {})
             item['pods'] = pods
             return item
     raise HTTPException(status_code=404, detail='Workload not found')
@@ -106,7 +106,8 @@ def pod_detail(namespace: str, name: str, user: User = Depends(get_current_user)
     pod = k8s_service.get_pod(namespace, name)
     pod_events = [e for e in k8s_service.list_events(namespace) if e['obj'] == name]
     pod['events'] = pod_events
-    pod['likely_cause'] = likely_cause(pod['container_statuses'])
+    event_signals = [f"{event['reason']} {event['message']}" for event in pod_events]
+    pod['likely_cause'] = likely_cause(pod['container_statuses'], event_signals)
     return pod
 
 

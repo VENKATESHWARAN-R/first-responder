@@ -77,7 +77,10 @@ class KubernetesService:
                 images = []
                 if item.spec and item.spec.template and item.spec.template.spec:
                     images = [c.image for c in (item.spec.template.spec.containers or []) if c.image]
-                result.append({'kind': kind, 'name': item.metadata.name, 'namespace': namespace, 'desired': spec_replicas, 'ready': ready, 'images': images, 'conditions': [c.to_dict() for c in (item.status.conditions or [])]})
+                selector = {}
+                if item.spec and getattr(item.spec, 'selector', None) and getattr(item.spec.selector, 'match_labels', None):
+                    selector = item.spec.selector.match_labels or {}
+                result.append({'kind': kind, 'name': item.metadata.name, 'namespace': namespace, 'desired': spec_replicas, 'ready': ready, 'images': images, 'selector': selector, 'conditions': [c.to_dict() for c in (item.status.conditions or [])]})
         return result
 
     def list_pods(self, namespace: str) -> list[dict[str, Any]]:
@@ -111,6 +114,20 @@ class KubernetesService:
             last_reason = s.last_state.terminated.reason if s.last_state and s.last_state.terminated else ''
             statuses.append({'name': s.name, 'state': state, 'state_reason': state_reason, 'last_state_reason': last_reason or '', 'restart_count': s.restart_count or 0, 'message': message})
         return {'name': name, 'namespace': namespace, 'phase': pod.status.phase, 'node': pod.spec.node_name, 'start_time': pod.status.start_time, 'container_statuses': statuses}
+
+    def list_pods_by_selector(self, namespace: str, selector: dict[str, str]) -> list[dict[str, Any]]:
+        if not selector:
+            return []
+        self._ensure_config()
+        label_selector = ','.join(f'{key}={value}' for key, value in selector.items())
+        resp = self._call(lambda **kw: self.core.list_namespaced_pod(namespace, label_selector=label_selector, **kw))
+        pods: list[dict[str, Any]] = []
+        for p in resp.items:
+            statuses = p.status.container_statuses or []
+            restarts = sum((s.restart_count or 0) for s in statuses)
+            owners = [o.name for o in (p.metadata.owner_references or []) if o.name]
+            pods.append({'name': p.metadata.name, 'phase': p.status.phase, 'node': p.spec.node_name, 'start_time': p.status.start_time, 'restart_count': restarts, 'owners': owners})
+        return pods
 
     def list_events(self, namespace: str) -> list[dict[str, Any]]:
         self._ensure_config()

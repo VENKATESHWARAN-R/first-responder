@@ -9,15 +9,27 @@ RULES: list[tuple[str, str]] = [
 ]
 
 
-def likely_cause(container_statuses: list[dict[str, Any]]) -> dict[str, str]:
+def likely_cause(container_statuses: list[dict[str, Any]], extra_signals: list[str] | None = None) -> dict[str, str]:
+    signals: list[str] = []
     for status in container_statuses:
-        signals = [
-            status.get('state_reason', ''),
-            status.get('last_state_reason', ''),
-            status.get('message', ''),
-        ]
-        for signal in signals:
-            for keyword, diagnosis in RULES:
-                if keyword and keyword in signal:
-                    return {'signal': keyword, 'diagnosis': diagnosis}
+        signals.extend([
+            str(status.get('state_reason', '')),
+            str(status.get('last_state_reason', '')),
+            str(status.get('message', '')),
+        ])
+        if int(status.get('restart_count', 0) or 0) >= 3:
+            signals.append('CrashLoopBackOff')
+
+    if extra_signals:
+        signals.extend(str(signal) for signal in extra_signals)
+
+    lowered = [signal.lower() for signal in signals]
+    for keyword, diagnosis in RULES:
+        needle = keyword.lower()
+        if any(needle in signal for signal in lowered):
+            return {'signal': keyword, 'diagnosis': diagnosis}
+
+    if any('back-off restarting failed container' in signal for signal in lowered):
+        return {'signal': 'CrashLoopBackOff', 'diagnosis': 'Pod is crash looping. App process likely exits or startup checks fail.'}
+
     return {'signal': 'None', 'diagnosis': 'No clear crash-loop signal detected from container states.'}

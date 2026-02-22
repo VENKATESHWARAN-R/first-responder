@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { Nav } from '../components/Nav';
 import { apiFetch } from '../lib/api';
 
 export default function HomePage() {
@@ -15,7 +14,6 @@ export default function HomePage() {
   const filtered = useMemo(() => items.filter((it) => it.namespace.includes(q)), [items, q]);
   return (
     <main className="container">
-      <Nav />
       <h1>Namespace Observatory</h1>
       <input aria-label="Search namespaces" placeholder="Search namespaces" value={q} onChange={(e) => setQ(e.target.value)} />
       {error && <p role="alert">{error}</p>}
