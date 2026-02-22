@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: namespace-observatory-backend
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels: { app: namespace-observatory-backend }
+  template:
+    metadata:
+      labels: { app: namespace-observatory-backend }
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+      - name: backend
+        image: {{ .Values.backend.image }}
+        ports: [{ containerPort: 8000 }]
+        env:
+          - name: ADMIN_EMAIL
+            value: "admin@example.com"
+          - name: ADMIN_PASSWORD
+            value: "admin123!"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: namespace-observatory-backend
+spec:
+  selector: { app: namespace-observatory-backend }
+  ports:
+    - port: 8000
+      targetPort: 8000

@@ -1,0 +1,20 @@
+Metadata-Version: 2.4
+Name: namespace-observatory-backend
+Version: 0.1.0
+Summary: Read-only Kubernetes monitoring API
+Requires-Python: >=3.11
+Requires-Dist: fastapi>=0.115.0
+Requires-Dist: uvicorn[standard]>=0.30.0
+Requires-Dist: python-jose[cryptography]>=3.3.0
+Requires-Dist: passlib[bcrypt]>=1.7.4
+Requires-Dist: sqlmodel>=0.0.22
+Requires-Dist: kubernetes>=31.0.0
+Requires-Dist: httpx>=0.27.2
+Requires-Dist: tenacity>=9.0.0
+Requires-Dist: pydantic-settings>=2.5.2
+Requires-Dist: email-validator>=2.2.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.3.2; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.24.0; extra == "dev"
+Requires-Dist: ruff>=0.6.9; extra == "dev"
+Requires-Dist: mypy>=1.11.2; extra == "dev"

@@ -1,0 +1,9 @@
+namespace: observatory
+backend:
+  image: namespace-observatory-backend:latest
+  replicaCount: 1
+frontend:
+  image: namespace-observatory-frontend:latest
+  replicaCount: 1
+serviceAccount:
+  name: namespace-observatory
