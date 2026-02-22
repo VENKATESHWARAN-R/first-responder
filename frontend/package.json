@@ -1,0 +1,22 @@
+{
+  "name": "namespace-observatory-frontend",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "14.2.13",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "typescript": "5.6.2",
+    "@types/react": "18.3.9",
+    "@types/node": "22.7.5",
+    "eslint": "8.57.1",
+    "eslint-config-next": "14.2.13"
+  }
+}
