@@ -74,33 +74,80 @@ class K8sService:
             return []
 
     def get_namespace_health(self, ns: str) -> str:
-        # Check pods in namespace
+        # Check pods and deployments in namespace
         try:
+            # 1. Pod Health
             pods = self.v1.list_namespaced_pod(ns).items
-            total = len(pods)
-            if total == 0:
-                return "Healthy"
+            total_pods = len(pods)
 
-            failed = 0
-            pending = 0
+            critical_pods = 0
+            degraded_pods = 0
+
             for pod in pods:
                 phase = pod.status.phase
-                if phase == "Failed":
-                    failed += 1
-                elif phase == "Pending":
-                    pending += 1
+                restarts = 0
+                is_critical = False
+                is_degraded = False
 
-                # Check container statuses for restarts/errors
+                if phase == "Failed":
+                    is_critical = True
+                elif phase == "Unknown":
+                    is_degraded = True
+                elif phase == "Pending":
+                     # Check if pending for too long or has scheduling issues?
+                     # For now, just count as degraded if container statuses show waiting reasons
+                     if pod.status.container_statuses:
+                         for cs in pod.status.container_statuses:
+                             if cs.state.waiting and cs.state.waiting.reason in ["ImagePullBackOff", "ErrImagePull", "CreateContainerConfigError", "CrashLoopBackOff"]:
+                                 is_critical = True
+                                 break
+                     if not is_critical:
+                         is_degraded = True # Pending generally means not ready yet
+
+                # Check Running pods for crash loops
                 if pod.status.container_statuses:
                     for cs in pod.status.container_statuses:
-                        if not cs.ready and cs.state.waiting:
-                            if cs.state.waiting.reason in ["ImagePullBackOff", "CrashLoopBackOff", "ErrImagePull"]:
-                                failed += 1 # Count as issue
+                        restarts += cs.restart_count
 
-            if failed > 0:
-                return "Critical" if failed / total > 0.2 else "Degraded"
-            if pending > 0:
+                        # Waiting with bad reason -> Critical
+                        if cs.state.waiting and cs.state.waiting.reason in ["CrashLoopBackOff", "ImagePullBackOff", "ErrImagePull", "CreateContainerConfigError"]:
+                             is_critical = True
+
+                        # Terminated with error -> Critical/Degraded depending on time?
+                        # Simplification: If terminated with non-zero exit code and restart count > 0, it's likely crashing
+                        if cs.state.terminated and cs.state.terminated.exit_code != 0:
+                            if cs.restart_count > 0:
+                                is_critical = True
+                            else:
+                                is_degraded = True
+
+                if is_critical:
+                    critical_pods += 1
+                elif is_degraded:
+                    degraded_pods += 1
+
+            # 2. Workload Health (Deployments)
+            deployments = self.apps_v1.list_namespaced_deployment(ns).items
+            unavailable_deps = 0
+            for d in deployments:
+                replicas = d.spec.replicas or 0
+                ready = d.status.ready_replicas or 0
+                if ready < replicas:
+                    unavailable_deps += 1
+
+            # Decision Logic
+            if critical_pods > 0:
+                # If more than 20% of pods are critical, or if there's at least one and total count is small
+                if total_pods > 0 and (critical_pods / total_pods > 0.1):
+                    return "Critical"
+                return "Degraded" # A single crashing pod is degraded, many is critical
+
+            if unavailable_deps > 0:
                 return "Degraded"
+
+            if degraded_pods > 0:
+                return "Degraded"
+
             return "Healthy"
         except ApiException:
             return "Unknown"

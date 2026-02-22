@@ -7,6 +7,11 @@ from unittest.mock import patch, MagicMock
 client = TestClient(app)
 
 def test_api_flow():
+    # Reset/Clean DB for test
+    from backend.app.services.auth import fake_users_db, init_admin_user, save_users
+    fake_users_db.clear()
+    init_admin_user() # Ensure admin is back
+
     # 1. Login as Admin
     login_data = {"username": settings.ADMIN_EMAIL, "password": settings.ADMIN_PASSWORD}
     response = client.post("/api/auth/login", data=login_data)

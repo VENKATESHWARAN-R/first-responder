@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* Default: Minimal Theme */
+    /* Default: Minimal Theme (HSL values) */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
 
@@ -13,6 +13,15 @@
 
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -27,26 +36,38 @@
   }
 
   [data-theme='neo-brutal'] {
-    /* Neo-brutal Theme */
-    --background: 60 100% 97%; /* Light yellow-ish */
-    --foreground: 0 0% 0%; /* Stark black */
+    /* Neo-brutal Theme (HSL values) */
+    /* Background: Light Yellow (60deg, 100%, 97%) */
+    --background: 60 100% 97%;
+    --foreground: 0 0% 0%;
 
     --card: 0 0% 100%;
     --card-foreground: 0 0% 0%;
 
-    --primary: 262 80% 50%; /* Deep Purple */
+    /* Primary: Deep Purple (262deg, 80%, 50%) */
+    --primary: 262 80% 50%;
     --primary-foreground: 0 0% 100%;
+
+    /* Secondary: Vibrant Cyan */
+    --secondary: 180 100% 50%;
+    --secondary-foreground: 0 0% 0%;
+
+    --muted: 60 20% 90%;
+    --muted-foreground: 0 0% 0%;
+
+    --accent: 300 100% 50%; /* Magenta accent */
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 100% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 0%; /* Black borders */
+    --border: 0 0% 0%;
     --input: 0 0% 0%;
     --ring: 0 0% 0%;
 
-    --radius: 0px; /* Sharp corners */
-    --shadow-neo: 4px 4px 0px 0px rgba(0,0,0,1); /* Hard shadow */
-    --border-neo: 2px; /* Thick borders */
+    --radius: 0px;
+    --shadow-neo: 5px 5px 0px 0px rgba(0,0,0,1);
+    --border-neo: 3px;
   }
 }
 
@@ -55,6 +76,6 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors duration-300;
   }
 }
