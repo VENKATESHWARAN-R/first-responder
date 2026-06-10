@@ -1,0 +1,57 @@
+# Constant synthetic traffic against the gateway: two browse requests per second
+# and a checkout every ~3s. Exists so injected faults produce live, observable
+# symptoms (error rates, latency, restarts) instead of a silent broken cluster.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen
+  namespace: shop
+  labels:
+    app.kubernetes.io/name: loadgen
+    app.kubernetes.io/part-of: shop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: loadgen
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: loadgen
+        app.kubernetes.io/part-of: shop
+    spec:
+      containers:
+        - name: loadgen
+          image: curlimages/curl:8.10.1
+          env:
+            - name: GATEWAY_URL
+              value: http://gateway.shop.svc.cluster.local:8000
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              i=0
+              while true; do
+                i=$((i + 1))
+                pid=$((i % 5 + 1))
+                curl -s -o /dev/null -m 5 \
+                  -w "GET /api/products -> %{http_code} in %{time_total}s\n" \
+                  "$GATEWAY_URL/api/products"
+                curl -s -o /dev/null -m 5 \
+                  -w "GET /api/products/$pid -> %{http_code} in %{time_total}s\n" \
+                  "$GATEWAY_URL/api/products/$pid"
+                if [ $((i % 3)) -eq 0 ]; then
+                  curl -s -o /dev/null -m 5 -X POST \
+                    -H 'Content-Type: application/json' \
+                    -d "{\"product_id\": $pid, \"quantity\": 1}" \
+                    -w "POST /api/checkout -> %{http_code} in %{time_total}s\n" \
+                    "$GATEWAY_URL/api/checkout"
+                fi
+                sleep 1
+              done
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi

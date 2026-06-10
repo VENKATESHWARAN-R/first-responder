@@ -1,0 +1,35 @@
+id: 02-crash-loop
+title: catalog crash-loops after config points it at an unreachable redis
+fault_class: crash-loop
+faulty_component: deployment/catalog
+namespace: shop
+injection:
+  mechanism: >-
+    kubectl set env on deployment/catalog setting REDIS_URL to
+    redis://redis-primary.infra.svc.cluster.local:6379/0 (unresolvable host), with
+    change-cause "config change: point catalog at shared redis (infra migration)".
+  artifact_note: >-
+    Simulates a config/secret change gone wrong. In production this would typically
+    arrive via a ConfigMap or external config system rather than a direct env edit;
+    the resulting pod behavior is identical.
+root_cause: >-
+  A configuration change pointed catalog at redis-primary.infra.svc.cluster.local,
+  which does not exist. Catalog fails fast at startup when its Redis is unreachable,
+  so new pods exit after ~10s of connection retries and enter CrashLoopBackOff. The
+  rolling update never completes. The actual redis service in the shop namespace is
+  healthy throughout.
+observable_signals:
+  - catalog pods in CrashLoopBackOff with climbing restart counts; rollout stuck with unready new pods
+  - catalog logs show repeated "cannot reach redis at redis://redis-primary.infra.svc.cluster.local:6379/0" warnings then a CRITICAL "giving up" line
+  - events show Back-off restarting failed container and readiness probe failures for catalog
+  - rollout history of deployment/catalog shows a fresh revision with the infra-migration change-cause at symptom onset
+  - the redis deployment in the shop namespace is Running and Ready (exonerated)
+  - depending on rollout timing, browse traffic (GET /api/products) degrades or fails at the gateway
+blast_radius:
+  - deployment/catalog
+  - browse path through gateway (GET /api/products, GET /api/products/{id})
+time_to_symptom: first crash ~15s after injection; CrashLoopBackOff within ~1 minute
+expected_verdict: mitigation-proposed
+expected_mitigation: >-
+  Revert the REDIS_URL config change on deployment/catalog (roll back to the
+  previous revision pointing at redis.shop.svc.cluster.local).

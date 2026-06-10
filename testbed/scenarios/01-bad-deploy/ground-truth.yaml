@@ -1,0 +1,34 @@
+id: 01-bad-deploy
+title: orders v1.4.0 points checkout at a nonexistent payments endpoint
+fault_class: bad-deploy
+faulty_component: deployment/orders
+namespace: shop
+injection:
+  mechanism: >-
+    kubectl patch on deployment/orders setting env PAYMENTS_URL to
+    http://payments-v2.shop.svc.cluster.local:8000 (a service that does not exist)
+    and bumping app.kubernetes.io/version to 1.4.0, with change-cause
+    "release orders v1.4.0: migrate to payments-v2 endpoint".
+  artifact_note: >-
+    A real bad deploy would change the image tag with the bad URL baked into code or
+    config; here only env + version label change. The investigative trail (fresh
+    rollout, change-cause, immediate symptom onset) is the same.
+root_cause: >-
+  The orders v1.4.0 rollout changed PAYMENTS_URL to payments-v2.shop.svc.cluster.local,
+  a service that does not exist. Every checkout fails with a connection error when
+  orders tries to charge; the gateway surfaces this as 502 on POST /api/checkout.
+  The payments service itself is healthy.
+observable_signals:
+  - loadgen / gateway logs show POST /api/checkout returning 502 while GET /api/products stays 200
+  - orders logs show ERROR "payments unreachable at http://payments-v2.shop.svc.cluster.local:8000" with ConnectError
+  - rollout history of deployment/orders shows a fresh revision ("release orders v1.4.0") timestamped at symptom onset
+  - orders pod spec env PAYMENTS_URL references payments-v2, which does not exist among services in the namespace
+  - payments pods are Running and Ready and stop receiving traffic
+blast_radius:
+  - deployment/orders
+  - checkout path through gateway (POST /api/checkout)
+time_to_symptom: immediate after rollout completes (~30s)
+expected_verdict: mitigation-proposed
+expected_mitigation: >-
+  Roll back deployment/orders to the previous revision (v1.3.0), restoring
+  PAYMENTS_URL to the existing payments service.

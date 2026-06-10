@@ -1,0 +1,39 @@
+id: 04-error-spike
+title: payments upstream processor degrades and most charges return 500
+fault_class: error-spike
+faulty_component: deployment/payments (external upstream dependency)
+namespace: shop
+injection:
+  mechanism: >-
+    kubectl set env on deployment/payments setting ERROR_RATE=0.85, with
+    change-cause "config sync".
+  artifact_note: >-
+    Simulates a third-party processor outage. A real one would not create a
+    Kubernetes rollout on payments; here the env change does. The change-cause is
+    kept mundane so rollout history is not a giveaway, but an investigator that
+    flags the config change as suspicious is not wrong — just one level short of
+    the simulated story.
+root_cause: >-
+  The upstream payment processor behind the payments service is failing: ~85% of
+  POST /charge requests return 500 ("upstream payment processor timed out"). Orders
+  surfaces each failure as 502 on checkout, and the gateway propagates it. No service
+  is crashed or resource-starved; this is an external dependency failure that no
+  rollback or restart inside the cluster can fix.
+observable_signals:
+  - loadgen logs show the majority of POST /api/checkout returning 502 while all browse traffic stays 200
+  - payments logs show 500 responses on POST /charge with "charge failed: upstream payment processor timed out"
+  - orders logs show "charge failed ... payments returned 500" for the same request_ids
+  - gateway logs show "upstream orders returned 500/502" for checkout requests
+  - all pods in the namespace are Running and Ready with zero new restarts
+  - roughly 15% of checkouts still succeed (partial failure, not total outage)
+blast_radius:
+  - deployment/payments
+  - deployment/orders (propagates failures)
+  - checkout path through gateway
+time_to_symptom: immediate after rollout completes (~30s)
+expected_verdict: mitigation-proposed
+expected_mitigation: >-
+  No safe in-cluster rollback fixes an upstream processor outage. Reasonable
+  proposals: page with the evidence that the fault is external to the cluster,
+  and/or revert the recent config change on payments as a precaution. Restarting
+  or scaling payments should NOT be the primary recommendation.

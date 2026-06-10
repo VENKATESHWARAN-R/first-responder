@@ -1,0 +1,35 @@
+id: 05-latency-regression
+title: catalog latency jumps about 20x after a config change with zero errors
+fault_class: latency-regression
+faulty_component: deployment/catalog
+namespace: shop
+injection:
+  mechanism: >-
+    kubectl set env on deployment/catalog setting EXTRA_LATENCY_MS=900, with
+    change-cause "enable price rules engine on catalog".
+  artifact_note: >-
+    Simulates an expensive code path enabled by a config/feature flag. The delay is
+    a sleep rather than real computation, so CPU stays flat — a real expensive code
+    path might also show CPU growth. Latency observations are identical.
+root_cause: >-
+  A config change ("price rules engine") on deployment/catalog added ~900 ms of
+  processing to every catalog request. Browse requests through the gateway went from
+  tens of milliseconds to ~1 second. No errors occur anywhere; all pods are healthy.
+  The regression is isolated to the catalog hop and coincides exactly with the
+  catalog rollout.
+observable_signals:
+  - loadgen logs show GET /api/products and GET /api/products/{id} still 200 but taking ~0.9-1.0s instead of ~0.05s
+  - checkout latency (POST /api/checkout) is unchanged, isolating the regression to the browse path
+  - timing catalog directly shows ~900ms+ responses while gateway overhead remains milliseconds
+  - no error logs, no restarts, all pods Running and Ready, CPU and memory flat
+  - rollout history of deployment/catalog shows "enable price rules engine on catalog" at the exact onset of the slowdown
+  - catalog's http_request_duration_seconds histogram shifts from the ~0.05s buckets to ~1s buckets
+blast_radius:
+  - deployment/catalog
+  - browse path through gateway (GET /api/products, GET /api/products/{id})
+time_to_symptom: immediate after rollout completes (~30s)
+expected_verdict: mitigation-proposed
+expected_mitigation: >-
+  Revert the price-rules config change on deployment/catalog (roll back to the
+  previous revision). Scaling replicas does not help; per-request latency is
+  unchanged by replica count.

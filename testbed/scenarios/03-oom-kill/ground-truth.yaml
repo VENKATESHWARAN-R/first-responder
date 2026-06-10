@@ -1,0 +1,35 @@
+id: 03-oom-kill
+title: orders v1.3.1 enables an unbounded order cache and gets OOMKilled
+fault_class: oom-kill
+faulty_component: deployment/orders
+namespace: shop
+injection:
+  mechanism: >-
+    kubectl patch on deployment/orders setting env ENABLE_ORDER_CACHE=true and
+    bumping app.kubernetes.io/version to 1.3.1, with change-cause "release orders
+    v1.3.1: enable in-memory order cache for faster lookups".
+  artifact_note: >-
+    The leak is real application code (an unbounded dict caching ~8 MB per order in
+    apps/services/orders/main.py); only the feature flag arrives via env rather
+    than an image change.
+root_cause: >-
+  The orders v1.3.1 change enabled an in-memory order cache that stores every
+  confirmed order plus an ~8 MB invoice blob and never evicts. Under steady checkout
+  traffic each pod's memory grows until it exceeds the 192Mi container limit and is
+  OOMKilled, restarting every few minutes in a sawtooth pattern. Restarting pods only
+  resets the cycle; the cache change must be rolled back.
+observable_signals:
+  - orders pods show restarts with Last State Terminated, Reason OOMKilled in kubectl describe
+  - restart counts on orders pods climb every few minutes while other deployments stay at 0
+  - kubectl top pods shows orders memory ratcheting toward the 192Mi limit between restarts
+  - loadgen logs show short bursts of 502 on POST /api/checkout coinciding with each kill, browse unaffected
+  - rollout history of deployment/orders shows "release orders v1.3.1: enable in-memory order cache" just before the first OOMKill
+  - orders source in apps/services/orders/main.py caches an 8MB invoice blob per order with no eviction when ENABLE_ORDER_CACHE is set
+blast_radius:
+  - deployment/orders
+  - checkout path through gateway (intermittent, worst during each kill/restart)
+time_to_symptom: first OOMKill ~2-3 minutes after injection under loadgen traffic
+expected_verdict: mitigation-proposed
+expected_mitigation: >-
+  Roll back the v1.3.1 change on deployment/orders (disable ENABLE_ORDER_CACHE).
+  Restarting pods is not a fix; it only resets the leak cycle.
